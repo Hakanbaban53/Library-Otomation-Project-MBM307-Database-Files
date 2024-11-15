@@ -29,13 +29,6 @@ BEGIN
     VALUES ('New member registered with ID ' + CAST(@MemberID AS NVARCHAR), GETDATE());
 END;
 
-
-CREATE TABLE Logs (
-    LogID INT PRIMARY KEY IDENTITY(1,1),
-    Description NVARCHAR(255),
-    LogDate DATETIME DEFAULT GETDATE()
-);
-
 CREATE TRIGGER trg_AfterFineUpdate
 ON Fine
 AFTER UPDATE
