@@ -49,4 +49,31 @@ JOIN
 WHERE 
     l.ReturnDate IS NULL;
 
+CREATE VIEW MostBorrowedBooksView AS
+SELECT 
+    b.Title, COUNT(l.BookID) AS BorrowCount
+FROM 
+    Loans l
+JOIN 
+    Books b ON l.BookID = b.BookID
+WHERE 
+    l.ReturnDate IS NOT NULL
+GROUP BY 
+    b.Title;
+
+
+CREATE VIEW ActiveMembersView AS
+SELECT 
+    m.MemberID, 
+    m.FirstName, 
+    m.LastName, 
+    COUNT(l.LoanID) AS ActiveLoans
+FROM 
+    Members m
+JOIN 
+    Loans l ON m.MemberID = l.MemberID
+WHERE 
+    l.ReturnDate IS NULL
+GROUP BY 
+    m.MemberID, m.FirstName, m.LastName;
 

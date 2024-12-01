@@ -41,9 +41,13 @@ INSERT INTO BookCategory (CategoryName) VALUES ('Science Fiction'), ('Fantasy'),
 CREATE TABLE Users (
     UserID INT PRIMARY KEY IDENTITY(1,1),
     Username NVARCHAR(50) NOT NULL UNIQUE,
-    PasswordHash NVARCHAR(255) NOT NULL,
+    PasswordHash NVARCHAR(255) NOT NULL, 
+    Email NVARCHAR(100) UNIQUE,
+    Phone NVARCHAR(15),
+    Status NVARCHAR(50) CHECK (Status IN ('Active', 'Inactive')) NOT NULL DEFAULT 'Active';
     Role NVARCHAR(50) CHECK (Role IN ('Admin', 'Librarian')) NOT NULL
 );
+
 
 
 CREATE TABLE Fine (
@@ -57,4 +61,12 @@ CREATE TABLE Logs (
     LogID INT PRIMARY KEY IDENTITY(1,1),
     Description NVARCHAR(255),
     LogDate DATETIME DEFAULT GETDATE()
+);
+
+
+	CREATE TABLE AuditLog (
+    LogID INT PRIMARY KEY IDENTITY(1,1),
+    Action NVARCHAR(50),
+    Description NVARCHAR(255),
+    ActionDate DATETIME DEFAULT GETDATE()
 );
