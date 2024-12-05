@@ -35,36 +35,28 @@ CREATE TABLE BookCategory (
     CategoryName NVARCHAR(100) NOT NULL UNIQUE
 );
 
-INSERT INTO BookCategory (CategoryName) VALUES ('Science Fiction'), ('Fantasy'), ('Mystery'), ('Non-Fiction'), ('Biography');
-
-
 CREATE TABLE Users (
     UserID INT PRIMARY KEY IDENTITY(1,1),
     Username NVARCHAR(50) NOT NULL UNIQUE,
     PasswordHash NVARCHAR(255) NOT NULL, 
     Email NVARCHAR(100) UNIQUE,
     Phone NVARCHAR(15),
-    Status NVARCHAR(50) CHECK (Status IN ('Active', 'Inactive')) NOT NULL DEFAULT 'Active';
-    Role NVARCHAR(50) CHECK (Role IN ('Admin', 'Librarian')) NOT NULL
+    Role NVARCHAR(20) CHECK (Role IN ('Admin', 'Librarian')),
+    IsActive BIT DEFAULT 1
 );
 
 
-
-CREATE TABLE Fine (
+CREATE TABLE Fines (
     FineID INT PRIMARY KEY IDENTITY(1,1),
-    LoanID INT NOT NULL FOREIGN KEY REFERENCES Loans(LoanID),
-    Amount DECIMAL(10, 2) NOT NULL CHECK (Amount >= 0),
-    PaidStatus BIT NOT NULL DEFAULT 0
+    MemberID INT FOREIGN KEY REFERENCES Members(MemberID),
+    LoanID INT FOREIGN KEY REFERENCES Loans(LoanID),
+    Amount DECIMAL(10, 2),
+    PaidStatus BIT DEFAULT 0,
+    IssuedDate DATE DEFAULT GETDATE(),
+    PaidDate DATE NULL
 );
 
-CREATE TABLE Logs (
-    LogID INT PRIMARY KEY IDENTITY(1,1),
-    Description NVARCHAR(255),
-    LogDate DATETIME DEFAULT GETDATE()
-);
-
-
-	CREATE TABLE AuditLog (
+CREATE TABLE AuditLog (
     LogID INT PRIMARY KEY IDENTITY(1,1),
     Action NVARCHAR(50),
     Description NVARCHAR(255),

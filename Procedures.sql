@@ -80,35 +80,6 @@ BEGIN
     END
 END;
 
-
-CREATE PROCEDURE ReturnBook
-    @LoanID INT,
-    @ReturnDate DATE
-AS
-BEGIN
-    DECLARE @DueDate DATE;
-    DECLARE @FineAmount DECIMAL(10, 2) = 0.00;
-    
-    -- Get the due date for the loan
-    SELECT @DueDate = DueDate FROM Loans WHERE LoanID = @LoanID;
-    
-    -- Check if the book is overdue
-    IF @ReturnDate > @DueDate
-    BEGIN
-        -- Calculate fine (example: $1 per day overdue)
-        SET @FineAmount = DATEDIFF(DAY, @DueDate, @ReturnDate) * 1.00;
-        
-        -- Insert fine record
-        INSERT INTO Fine (LoanID, Amount, PaidStatus)
-        VALUES (@LoanID, @FineAmount, 0);
-    END
-
-    -- Update the loan record with the return date
-    UPDATE Loans
-    SET ReturnDate = @ReturnDate
-    WHERE LoanID = @LoanID;
-END;
-
 CREATE PROCEDURE ListOverdueBooks
 AS
 BEGIN
@@ -128,10 +99,11 @@ CREATE PROCEDURE AuthenticateUser
     @Password NVARCHAR(255)
 AS
 BEGIN
-    SELECT UserID, Role
+    SELECT UserID, Username, Role, IsActive
     FROM Users
     WHERE Username = @Username AND PasswordHash = HASHBYTES('SHA2_256', @Password);
 END;
+
 
 
 CREATE PROCEDURE AddNewUser
@@ -139,7 +111,7 @@ CREATE PROCEDURE AddNewUser
     @Password NVARCHAR(255),
     @Email NVARCHAR(100),
     @Phone NVARCHAR(15),
-    @Status NVARCHAR(50),
+    @IsActive NVARCHAR(50),
     @Role NVARCHAR(50)
 AS
 BEGIN
@@ -155,8 +127,8 @@ BEGIN
         RETURN;
     END
 
-    INSERT INTO Users (Username, PasswordHash, Email, Phone, Status, Role)
-    VALUES (@Username, HASHBYTES('SHA2_256', @Password), @Email, @Phone, @Status, @Role);
+    INSERT INTO Users (Username, PasswordHash, Email, Phone, IsActive, Role)
+    VALUES (@Username, HASHBYTES('SHA2_256', @Password), @Email, @Phone, @IsActive, @Role);
 END;
 
 CREATE PROCEDURE DeleteUser
@@ -201,7 +173,7 @@ CREATE PROCEDURE UpdateUser
     @Email NVARCHAR(100),
     @Phone NVARCHAR(15),
     @Role NVARCHAR(50),
-	@Status NVARCHAR(50)
+	@IsActive NVARCHAR(50)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -213,7 +185,7 @@ BEGIN
         Email = @Email,
         Phone = @Phone,
         Role = @Role,
-		Status = @Status
+		IsActive = @IsActive
     WHERE 
         UserID = @UserID;
 END;
@@ -273,4 +245,84 @@ BEGIN
 
     DELETE FROM Books
     WHERE BookID = @BookID;
+END;
+
+CREATE PROCEDURE DeleteBook
+    @BookID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DELETE FROM Books
+    WHERE BookID = @BookID;
+END;
+
+
+CREATE PROCEDURE PayAllFinesForMember
+    @MemberID INT
+AS
+BEGIN
+    UPDATE Fines
+    SET PaidStatus = 1, PaidDate = GETDATE()
+    WHERE MemberID = @MemberID AND PaidStatus = 0;
+END;
+
+CREATE PROCEDURE ReturnBook
+    @LoanID INT,
+    @ReturnDate DATE
+AS
+BEGIN
+    DECLARE @DueDate DATE;
+    DECLARE @FineAmount DECIMAL(10, 2) = 0.00;
+    
+    -- Get the due date for the loan
+    SELECT @DueDate = DueDate FROM Loans WHERE LoanID = @LoanID;
+    
+    -- Check if the book is overdue
+    IF @ReturnDate > @DueDate
+    BEGIN
+        -- Calculate fine ($1 per day overdue)
+        SET @FineAmount = DATEDIFF(DAY, @DueDate, @ReturnDate) * 1.00;
+        
+        -- Insert fine record
+        INSERT INTO Fines (MemberID, LoanID, Amount, PaidStatus, IssuedDate)
+        VALUES (
+            (SELECT MemberID FROM Loans WHERE LoanID = @LoanID),
+            @LoanID,
+            @FineAmount,
+            0,
+            GETDATE()
+        );
+    END
+
+    -- Update the loan record with the return date
+    UPDATE Loans
+    SET ReturnDate = @ReturnDate
+    WHERE LoanID = @LoanID;
+END;
+
+
+CREATE PROCEDURE GetMembersWithLoansAndFines
+AS
+BEGIN
+    SELECT 
+        m.MemberID, 
+        m.FirstName + ' ' + m.LastName AS MemberName, 
+        COUNT(l.LoanID) AS ActiveLoans, 
+        STRING_AGG(b.Title, ', ') AS LoanedBooks, 
+        SUM(CASE WHEN f.PaidStatus = 0 THEN f.Amount ELSE 0 END) AS TotalFines,
+        STRING_AGG(CAST(f.FineID AS NVARCHAR), ', ') AS FineIDs
+    FROM 
+        Members m
+    LEFT JOIN 
+        Loans l ON m.MemberID = l.MemberID AND l.ReturnDate IS NULL
+    LEFT JOIN 
+        Books b ON l.BookID = b.BookID
+    LEFT JOIN 
+        Fines f ON m.MemberID = f.MemberID AND f.PaidStatus = 0
+    GROUP BY 
+        m.MemberID, m.FirstName, m.LastName
+    HAVING 
+        SUM(CASE WHEN f.PaidStatus = 0 THEN f.Amount ELSE 0 END) > 0 
+        OR COUNT(l.LoanID) > 0;
 END;

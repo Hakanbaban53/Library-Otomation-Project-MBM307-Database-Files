@@ -1,21 +1,3 @@
-CREATE FUNCTION CalculateOverdueFine
-(
-    @DueDate DATE,
-    @ReturnDate DATE
-)
-RETURNS DECIMAL(10, 2)
-AS
-BEGIN
-    DECLARE @FineAmount DECIMAL(10, 2) = 0.00;
-    IF @ReturnDate > @DueDate
-    BEGIN
-        -- Assume fine is $1 per day overdue
-        SET @FineAmount = DATEDIFF(DAY, @DueDate, @ReturnDate) * 1.00;
-    END
-    RETURN @FineAmount;
-END;
-
-
 CREATE FUNCTION IsBookAvailable
 (
     @BookID INT
@@ -31,7 +13,6 @@ BEGIN
     RETURN @Available;
 END;
 
-
 CREATE FUNCTION GetTotalFinesForMember
 (
     @MemberID INT
@@ -41,9 +22,12 @@ AS
 BEGIN
     DECLARE @TotalFines DECIMAL(10, 2);
     SELECT @TotalFines = SUM(Amount)
-    FROM Fine f
+    FROM Fines f
     INNER JOIN Loans l ON f.LoanID = l.LoanID
     WHERE l.MemberID = @MemberID AND f.PaidStatus = 0;
+    SELECT @TotalFines = SUM(DATEDIFF(DAY, l.DueDate, l.ReturnDate) * 1.00)
+    FROM Loans l
+    WHERE l.MemberID = @MemberID AND l.ReturnDate IS NOT NULL;
     RETURN ISNULL(@TotalFines, 0);
 END;
 
